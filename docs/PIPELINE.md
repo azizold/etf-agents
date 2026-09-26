@@ -65,16 +65,22 @@ execution step — there's nothing to click anywhere else.
 ## The 8 agents, as actually implemented
 
 Each agent's operating spec lives in `docs/agents/`. `src/agents/*.py` loads
-the relevant doc as the system prompt, adds the current data (from
-`src/db.py` and `src/market_data.py`), and calls Claude
-(`src/claude_client.py`), optionally with server-side web search enabled so
-research claims come back with real citations (feeding Section 1's sourcing
-rule directly).
+the relevant doc as the system prompt, adds the current state from
+`src/db.py`, and calls Claude (`src/claude_client.py`) with server-side web
+search enabled — every fund/company fact (AUM, expense ratio, holdings,
+revenue/EBITDA) is researched live with a real citation, feeding Section 1's
+sourcing rule directly rather than coming from a pre-fetched data feed.
+
+`src/market_data.py` (an FMP wrapper) exists but is **currently unused**:
+the dry run found FMP's free tier only covers a small sample of well-known
+tickers, not real ETF candidates. Paying for FMP's Starter plan was one
+option; using Claude's own web search for everything was the one taken
+instead, since it also means every figure already comes with a citation.
 
 | # | Agent | Module | Notes |
 |---|---|---|---|
 | 1 | Theme Discovery | `agents/theme_discovery.py` | web search on |
-| 2 | Fundamental/Composition | `agents/composition.py` | pulls FMP data first |
+| 2 | Fundamental/Composition | `agents/composition.py` | web search on |
 | 3 | Valuation | `agents/valuation.py` | web search on |
 | 4 | Risk/Counter-Case | `agents/risk.py` | `screen()` for Workflow A, `monitor()` for Workflow B |
 | 5 | Portfolio-Fit | `agents/portfolio_fit.py` | `check()` for A, `check_lockups()` for B |
@@ -89,9 +95,6 @@ Verification retry loop (send a failure back to the owning agent, capped at
 
 ## Known rough edges to expect on the first real runs
 
-- **FMP endpoints**: the free tier's exact endpoint set shifts over time
-  (`src/market_data.py` has a note on this). If a call 401s/404s during the
-  dry run, swap it for FMP's current equivalent.
 - **`MORE INFO[stage]`**: the housekeeping pass acknowledges the request and
   logs the round, but doesn't yet automatically re-run just that stage —
   it currently asks you to re-trigger `workflow_a` manually

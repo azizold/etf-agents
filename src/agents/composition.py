@@ -1,30 +1,19 @@
 import datetime as dt
 import json
 
-from .. import db, market_data
+from .. import db
 from .base import call_stage
 
 
 def evaluate(theme_id: str, candidate_tickers: list[str]) -> dict:
-    fund_data = {}
-    for ticker in candidate_tickers:
-        fund_data[ticker] = {
-            "profile": market_data.etf_profile(ticker),
-            "holdings": market_data.etf_holdings(ticker),
-            "sector_weights": market_data.etf_sector_weights(ticker),
-            "country_weights": market_data.etf_country_weights(ticker),
-            "quote": market_data.quote(ticker),
-        }
-
     existing_positions = db.get_open_positions()
     input_data = {
         "candidate_tickers": candidate_tickers,
-        "fund_data": fund_data,
         "existing_position_tickers": [p["ticker"] for p in existing_positions],
     }
     result = call_stage(
         workflow="A", agent_name="composition", doc_filename="02_composition.md",
-        input_data=input_data, use_web_search=False, theme_id=theme_id, max_tokens=8192,
+        input_data=input_data, use_web_search=True, theme_id=theme_id, max_tokens=8192,
     )
     parsed = result["parsed"]
 

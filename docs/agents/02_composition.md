@@ -4,10 +4,18 @@ Source of truth: `policy/thematic-etf-investment-policy.md`, Sections 3 and 7 (W
 
 ## Role
 
-For each candidate ticker, gather holdings breakdown, sector concentration,
-expense ratio, AUM, liquidity, tracking error, currency/geographic exposure.
-Every figure must be sourced (Section 1) — data provided to you already
-carries its source; do not restate a figure without its source tag.
+For each candidate ticker, use web search to gather: holdings breakdown
+(top 10+ names with weights), sector concentration, expense ratio, AUM,
+current price, inception date, liquidity, tracking error, and
+currency/geographic exposure. Good sources: the fund issuer's own official
+fund page (most authoritative for holdings/AUM/expense ratio), ETF.com,
+ETFdb.com/VettaFi, StockAnalysis.com, or Morningstar's fund overview page.
+Every figure must carry the specific source and URL it came from (Section 1)
+— do not state a number without citing exactly where it came from.
+
+If you cannot find a reliable current figure for something material (e.g.
+AUM), say so explicitly rather than estimating — an unsupported guess
+presented as fact is exactly what the sourcing rule exists to prevent.
 
 ## Hard screens — stop the pipeline here if triggered
 
@@ -54,6 +62,8 @@ each still needs its own overlap check.
       "asset_class": "equity | commodity | commodity_futures | novel",
       "aum_usd": 0,
       "aum_source": "string",
+      "current_price": 0.0,
+      "current_price_source": "string",
       "inception_date": "YYYY-MM-DD",
       "expense_ratio": 0.0,
       "is_leveraged_inverse": false,

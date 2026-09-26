@@ -1,14 +1,18 @@
 """Thin wrapper around Financial Modeling Prep's /stable/ REST API.
 
-Every function returns raw provider data plus a `source` tag, so callers can
-carry sourcing through to the deck (Section 1's sourcing rule) without
-re-deriving it later.
+CURRENTLY UNUSED by any agent — kept for reference / a possible future
+re-introduction. During the first dry run (2026-09-26), FMP's free tier
+turned out to only serve fundamental/ETF data for a small sample of ~87
+well-known tickers (AAPL, TSLA, etc.); every real thematic-ETF candidate
+returned 402 Payment Required. Rather than pay for FMP's Starter plan, every
+agent that needs fund or company facts now uses Claude's own web search
+instead (docs/agents/02_composition.md, 03_valuation.md) — see
+docs/PIPELINE.md for the full explanation.
 
-NOTE: FMP's legacy /api/v3/ endpoints return 403 on the current free tier —
-confirmed during the first dry run (2026-09-26). All calls here use the
-/stable/ endpoints with ?symbol=... query params instead, per FMP's current
-docs (site.financialmodelingprep.com/developer/docs/stable). If FMP moves
-things again, that's the first place to check.
+If a paid FMP plan (or another data provider) is added later, this module
+is the place to wire it back in. All calls below use the /stable/ endpoints
+with ?symbol=... query params, per FMP's current docs
+(site.financialmodelingprep.com/developer/docs/stable).
 """
 import requests
 

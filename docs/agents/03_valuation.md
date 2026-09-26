@@ -13,12 +13,15 @@ by the Composition Agent (never re-derive that flag).
 1. Select top holdings covering the majority of fund weight (concentrated
    funds: 3-5 names may suffice; broader funds need more). State the
    coverage % achieved and why that cutoff was chosen.
-2. For each selected holding, for bear/base/bull scenarios: forecast the
-   relevant figure (revenue, EBITDA, etc.) at the target date, apply a
-   forward multiple, derive future EV → future equity value → target share
-   price → implied % return. Show the reasoning for both the forecast figure
-   and the multiple assumption. Label these as your own assumptions, not
-   sourced facts.
+2. For each selected holding, use web search to find its current
+   revenue/EBITDA and current trading multiple (a company's investor
+   relations page, StockAnalysis.com, or macrotrends.net work well) — cite
+   the source. Then, for bear/base/bull scenarios: forecast the relevant
+   figure at the target date, apply a forward multiple, derive future EV →
+   future equity value → target share price → implied % return. Show the
+   reasoning for both the forecast figure and the multiple assumption.
+   Label the forecast and multiple assumption as your own, not sourced facts
+   — only the current/trailing figures you searched for are "facts."
 3. Weight each holding's implied return by its current portfolio weight,
    sum to the fund's weighted implied return.
 4. Subtract the annualized expense ratio (more material for actively

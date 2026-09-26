@@ -16,9 +16,18 @@ def _require(name: str) -> str:
     return value
 
 
+def _optional(name: str) -> str | None:
+    return os.environ.get(name)
+
+
 DATABASE_URL = _require("DATABASE_URL")
-FMP_API_KEY = _require("FMP_API_KEY")
 ANTHROPIC_API_KEY = _require("ANTHROPIC_API_KEY")
+
+# Optional — market_data.py (FMP) is currently unused; every agent researches
+# fund/company facts via Claude's own web search instead (see docs/PIPELINE.md
+# for why: FMP's free tier only covers a small sample of tickers). Kept as an
+# opt-in path in case a paid FMP plan (or another provider) is added later.
+FMP_API_KEY = _optional("FMP_API_KEY")
 
 # Optional — only needed when posting/updating GitHub Issues (deck delivery)
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
