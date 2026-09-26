@@ -1,21 +1,21 @@
-"""Thin wrapper around Financial Modeling Prep's REST API.
+"""Thin wrapper around Financial Modeling Prep's /stable/ REST API.
 
 Every function returns raw provider data plus a `source` tag, so callers can
 carry sourcing through to the deck (Section 1's sourcing rule) without
 re-deriving it later.
+
+NOTE: FMP's legacy /api/v3/ endpoints return 403 on the current free tier —
+confirmed during the first dry run (2026-09-26). All calls here use the
+/stable/ endpoints with ?symbol=... query params instead, per FMP's current
+docs (site.financialmodelingprep.com/developer/docs/stable). If FMP moves
+things again, that's the first place to check.
 """
 import requests
 
 from . import config
 
-BASE_URL = "https://financialmodelingprep.com"
+BASE_URL = "https://financialmodelingprep.com/stable"
 SOURCE_NAME = "Financial Modeling Prep"
-
-# NOTE: FMP has migrated some endpoints from /api/v3/ to /stable/ over time,
-# and free-tier access to certain endpoints (e.g. etf-holder) has shifted
-# between plans. Verify each endpoint below still returns data on the free
-# tier during the first dry run (Task: "Dry run of full pipeline") and swap
-# to the /stable/ equivalent if an endpoint 401s/404s.
 
 
 def _get(path, params=None):
@@ -28,53 +28,53 @@ def _get(path, params=None):
 
 def quote(ticker: str) -> dict:
     """Current price snapshot for a ticker."""
-    data = _get(f"/api/v3/quote/{ticker}")
+    data = _get("/quote", params={"symbol": ticker})
     row = data[0] if data else {}
-    return {"data": row, "source": SOURCE_NAME, "endpoint": f"/api/v3/quote/{ticker}"}
+    return {"data": row, "source": SOURCE_NAME, "endpoint": "/quote"}
 
 
 def etf_profile(ticker: str) -> dict:
     """AUM, expense ratio, inception date, asset class hints."""
-    data = _get(f"/api/v3/etf-info", params={"symbol": ticker})
+    data = _get("/etf/info", params={"symbol": ticker})
     row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else {})
-    return {"data": row, "source": SOURCE_NAME, "endpoint": "/api/v3/etf-info"}
+    return {"data": row, "source": SOURCE_NAME, "endpoint": "/etf/info"}
 
 
 def etf_holdings(ticker: str) -> dict:
     """Holdings breakdown with weights."""
-    data = _get(f"/api/v3/etf-holder/{ticker}")
-    return {"data": data, "source": SOURCE_NAME, "endpoint": f"/api/v3/etf-holder/{ticker}"}
+    data = _get("/etf/holdings", params={"symbol": ticker})
+    return {"data": data, "source": SOURCE_NAME, "endpoint": "/etf/holdings"}
 
 
 def etf_sector_weights(ticker: str) -> dict:
-    data = _get(f"/api/v3/etf-sector-weightings/{ticker}")
-    return {"data": data, "source": SOURCE_NAME, "endpoint": f"/api/v3/etf-sector-weightings/{ticker}"}
+    data = _get("/etf/sector-weightings", params={"symbol": ticker})
+    return {"data": data, "source": SOURCE_NAME, "endpoint": "/etf/sector-weightings"}
 
 
 def etf_country_weights(ticker: str) -> dict:
-    data = _get(f"/api/v3/etf-country-weightings/{ticker}")
-    return {"data": data, "source": SOURCE_NAME, "endpoint": f"/api/v3/etf-country-weightings/{ticker}"}
+    data = _get("/etf/country-weightings", params={"symbol": ticker})
+    return {"data": data, "source": SOURCE_NAME, "endpoint": "/etf/country-weightings"}
 
 
 def company_key_metrics(ticker: str) -> dict:
     """Revenue/EBITDA and related figures for a top holding (equity valuation, Section 6)."""
-    data = _get(f"/api/v3/key-metrics/{ticker}", params={"limit": 5})
-    return {"data": data, "source": SOURCE_NAME, "endpoint": f"/api/v3/key-metrics/{ticker}"}
+    data = _get("/key-metrics", params={"symbol": ticker, "limit": 5})
+    return {"data": data, "source": SOURCE_NAME, "endpoint": "/key-metrics"}
 
 
 def company_income_statement(ticker: str) -> dict:
-    data = _get(f"/api/v3/income-statement/{ticker}", params={"limit": 5})
-    return {"data": data, "source": SOURCE_NAME, "endpoint": f"/api/v3/income-statement/{ticker}"}
+    data = _get("/income-statement", params={"symbol": ticker, "limit": 5})
+    return {"data": data, "source": SOURCE_NAME, "endpoint": "/income-statement"}
 
 
 def historical_prices(ticker: str, days: int = 30) -> dict:
-    data = _get(f"/api/v3/historical-price-full/{ticker}", params={"timeseries": days})
-    return {"data": data.get("historical", []), "source": SOURCE_NAME,
-            "endpoint": f"/api/v3/historical-price-full/{ticker}"}
+    data = _get("/historical-price-eod/light", params={"symbol": ticker})
+    rows = data[:days] if isinstance(data, list) else []
+    return {"data": rows, "source": SOURCE_NAME, "endpoint": "/historical-price-eod/light"}
 
 
 def commodity_quote(symbol: str) -> dict:
     """e.g. symbol='GCUSD' for gold futures-equivalent spot."""
-    data = _get(f"/api/v3/quote/{symbol}")
+    data = _get("/quote", params={"symbol": symbol})
     row = data[0] if data else {}
-    return {"data": row, "source": SOURCE_NAME, "endpoint": f"/api/v3/quote/{symbol}"}
+    return {"data": row, "source": SOURCE_NAME, "endpoint": "/quote"}
