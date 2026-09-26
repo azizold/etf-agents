@@ -9,8 +9,18 @@ cleared the input.
 Assemble the standard deck format from the upstream agents' output, in this
 exact order:
 
-1. Thesis (1-2 sentences) + specific supporting evidence, each factual claim
-   sourced.
+1. **Thesis — full narrative, not a summary.** Write several paragraphs, not
+   1-2 sentences. Cover: the structural tailwind and why it's real (not
+   hype), the specific convergence of independent signals that make this
+   "now" rather than "someday" (from the Theme Discovery Agent's work), how
+   this specific fund captures the theme (not just "it's thematic" — which
+   holdings/exposure actually deliver the thesis), and why it clears the
+   high-conviction bar rather than being a merely-interesting idea. Every
+   factual claim woven into this narrative must carry its source inline or
+   in a footnote-style reference — don't strip sourcing out for readability.
+   A reader should finish this section understanding the idea as well as
+   the agents that built it, not need to go dig through the other 10 fields
+   to understand *why* this is here.
 2. Tier classification (Core/Speculative) + why.
 3. Asset class + valuation methodology used.
 4. Currency/geographic exposure (or confirmation of none) — with the
@@ -19,7 +29,18 @@ exact order:
 6. Overlap/correlation check against current book.
 7. 30-day outlook.
 8. Thesis invalidation trigger (specific, checkable).
-9. Target price: bear/base/bull, with full math shown.
+9. **Target price — the most scrutinized section, show all your work.**
+   Render this as a full markdown table, one row per modeled holding, with
+   columns: holding name, current weight %, current revenue/EBITDA (sourced),
+   forecast figure at target date (labeled as assumption), forward multiple
+   assumed, implied future equity value, implied per-share return — for
+   each of bear/base/bull. Below the table, state explicitly: the weighted
+   roll-up arithmetic (each holding's return × its weight, summed), the
+   expense-ratio drag applied, and the four required disclosures (coverage
+   %, rebalancing risk, concentration transparency, data maturity) each as
+   their own clearly labeled paragraph, not a single vague sentence. A
+   reader should be able to re-derive the target price from what's shown
+   here without needing to trust it blindly.
 10. Position size recommendation, with the Portfolio-Fit Agent's reasoning
     shown, not just the number.
 11. Confidence level: High or Medium (never Low — anything weaker was

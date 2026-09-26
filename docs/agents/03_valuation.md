@@ -10,16 +10,27 @@ by the Composition Agent (never re-derive that flag).
 
 ### Equity-style funds — bottom-up EV/equity-value roll-up
 
+This is the section you'll be judged on most — treat "I couldn't find enough
+detail" as a signal to search harder, not a reason to submit a thin answer.
+
 1. Select top holdings covering the majority of fund weight (concentrated
-   funds: 3-5 names may suffice; broader funds need more). State the
-   coverage % achieved and why that cutoff was chosen.
+   funds: 3-5 names may suffice; broader funds need more — err toward more
+   coverage, not less). State the coverage % achieved and why that cutoff
+   was chosen.
 2. For each selected holding, use web search to find its current
-   revenue/EBITDA and current trading multiple (a company's investor
-   relations page, StockAnalysis.com, or macrotrends.net work well) — cite
-   the source. Then, for bear/base/bull scenarios: forecast the relevant
-   figure at the target date, apply a forward multiple, derive future EV →
-   future equity value → target share price → implied % return. Show the
-   reasoning for both the forecast figure and the multiple assumption.
+   revenue/EBITDA (trailing twelve months) *and* its current trading
+   multiple (EV/revenue or EV/EBITDA, whichever fits the business) — a
+   company's investor relations page, StockAnalysis.com, macrotrends.net,
+   or wisesheets/wsj work well. Cite the specific source for each figure.
+   Then, for bear/base/bull scenarios: forecast the relevant figure at the
+   target date with an explicit growth-rate assumption you state a number
+   for (not "moderate growth" — say "12% CAGR" and why), apply a forward
+   multiple you also state a number for and justify against the current
+   multiple (expanding, holding flat, or compressing, and why), derive
+   future EV → future equity value → target share price → implied % return.
+   Show every intermediate number in the chain, not just the final implied
+   return — coverage this thin fails the Verification Agent's math check
+   and gets sent back anyway, so do it properly the first time.
    Label the forecast and multiple assumption as your own, not sourced facts
    — only the current/trailing figures you searched for are "facts."
 3. Weight each holding's implied return by its current portfolio weight,
@@ -67,7 +78,16 @@ the exposure without pricing it in.
   "methodology_notes": "string",
   "coverage_pct": 0.0,
   "holdings_detail": [
-    {"name": "string", "weight_pct": 0.0, "bear_return_pct": 0.0, "base_return_pct": 0.0, "bull_return_pct": 0.0, "reasoning": "string"}
+    {
+      "name": "string", "weight_pct": 0.0,
+      "current_metric_value": 0.0, "current_metric_label": "revenue | EBITDA",
+      "current_metric_source": "string", "current_multiple": 0.0, "current_multiple_source": "string",
+      "scenarios": {
+        "bear": {"growth_rate_assumed_pct": 0.0, "forecast_metric_value": 0.0, "multiple_assumed": 0.0, "future_ev": 0.0, "future_equity_value": 0.0, "target_share_price": 0.0, "implied_return_pct": 0.0, "reasoning": "string"},
+        "base": {"growth_rate_assumed_pct": 0.0, "forecast_metric_value": 0.0, "multiple_assumed": 0.0, "future_ev": 0.0, "future_equity_value": 0.0, "target_share_price": 0.0, "implied_return_pct": 0.0, "reasoning": "string"},
+        "bull": {"growth_rate_assumed_pct": 0.0, "forecast_metric_value": 0.0, "multiple_assumed": 0.0, "future_ev": 0.0, "future_equity_value": 0.0, "target_share_price": 0.0, "implied_return_pct": 0.0, "reasoning": "string"}
+      }
+    }
   ],
   "expense_ratio_drag_pct": 0.0,
   "current_price": 0.0,

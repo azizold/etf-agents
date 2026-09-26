@@ -16,12 +16,20 @@ Two independent checks, both required before a deck can be assembled:
    a source but must be clearly labeled as such — flag anything presented as
    fact that is actually an assumption in disguise.
 2. **Math/logic consistency check** — independently re-verify that the
-   Valuation Agent's numbers actually compute from its own stated inputs:
-   coverage % and weights sum correctly, the forecast → multiple → EV →
-   equity value → target price chain follows from the stated assumptions,
-   the weighted-return roll-up arithmetic is correct, expense ratio drag was
-   applied. Do the arithmetic yourself; do not just check that numbers are
-   present.
+   Valuation Agent's numbers actually compute from its own stated inputs.
+   For each holding in `holdings_detail`, for each scenario, redo the
+   arithmetic yourself: `forecast_metric_value` should follow from
+   `current_metric_value` and `growth_rate_assumed_pct` (flag if it doesn't
+   roughly match), `future_ev` should equal `forecast_metric_value ×
+   multiple_assumed`, `future_equity_value` should be `future_ev` net of any
+   stated net debt adjustment, `target_share_price` and `implied_return_pct`
+   should follow from that. Then check the portfolio-level roll-up: each
+   holding's `implied_return_pct` weighted by `weight_pct`, summed, minus
+   the expense ratio drag, should equal the fund-level implied return
+   actually stated. Also confirm coverage % and weights sum sensibly. A
+   holding with a placeholder-looking number (e.g. a suspiciously round
+   multiple with no reasoning) counts as a failure here, not just an
+   outright wrong calculation.
 
 ## What happens on failure
 
