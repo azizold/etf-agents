@@ -1,0 +1,65 @@
+name: Workflow A — New Opportunity
+
+on:
+  schedule:
+    # Theme Discovery cadence (Section 7, Workflow A step 1): pre-market,
+    # post-close, and end-of-weekend. Times are UTC and approximate Eastern
+    # Time without adjusting for DST — expect ~1hr drift for half the year.
+    - cron: "0 12 * * 1-5"   # ~8:00am ET, Mon-Fri — pre-market
+    - cron: "30 20 * * 1-5"  # ~4:30pm ET, Mon-Fri — post-close
+    - cron: "0 22 * * 0"     # ~6:00pm ET, Sunday — end of weekend
+    # Cheap, no-LLM housekeeping: read GitHub Issue comments for decisions
+    # and fill confirmations, and apply the 5-business-day no-response default.
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run a specific stage manually"
+        type: choice
+        options: [discover, responses, fills, expire, all]
+        default: all
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Discover + run pipeline on new candidates
+        if: >
+          github.event.schedule == '0 12 * * 1-5' ||
+          github.event.schedule == '30 20 * * 1-5' ||
+          github.event.schedule == '0 22 * * 0' ||
+          github.event.inputs.mode == 'discover' ||
+          github.event.inputs.mode == 'all'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -m src.workflow_a discover --source "${{ github.event.schedule || 'manual' }}"
+
+      - name: Process responses + fills + expiry
+        if: >
+          github.event.schedule == '0 */4 * * *' ||
+          github.event.inputs.mode == 'responses' ||
+          github.event.inputs.mode == 'fills' ||
+          github.event.inputs.mode == 'expire' ||
+          github.event.inputs.mode == 'all'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -m src.workflow_a responses
+          python -m src.workflow_a fills
+          python -m src.workflow_a expire

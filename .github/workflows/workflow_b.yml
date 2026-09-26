@@ -1,0 +1,49 @@
+name: Workflow B — Standing Position Monitoring
+
+on:
+  schedule:
+    # Base cadence (Section 7, Workflow B): monthly. Use workflow_dispatch
+    # below for an "event-triggered" run (e.g. you noticed a big move or
+    # relevant news and want an off-cycle re-score before the next month).
+    - cron: "0 13 1 * *"   # ~9:00am ET, 1st of each month
+    # Cheap, no-LLM housekeeping: read comments on monitoring decks.
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run a specific stage manually (event-triggered monitoring)"
+        type: choice
+        options: [monitor, responses]
+        default: monitor
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Run monitoring pass
+        if: github.event.schedule == '0 13 1 * *' || github.event.inputs.mode == 'monitor'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -m src.workflow_b monitor
+
+      - name: Process monitoring deck responses
+        if: github.event.schedule == '0 */4 * * *' || github.event.inputs.mode == 'responses'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -m src.workflow_b responses

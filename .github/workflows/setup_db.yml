@@ -1,0 +1,23 @@
+name: One-time DB schema setup
+
+# Manual only — run this once from the Actions tab after the DATABASE_URL
+# secret is set, to create all tables. Safe to re-run (every statement in
+# schema.sql uses "if not exists").
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  apply-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply schema.sql
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql "$DATABASE_URL" -f db/schema.sql
