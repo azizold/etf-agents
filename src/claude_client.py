@@ -24,7 +24,9 @@ def _extract_json(text: str) -> dict:
     match = re.search(r"\{.*\}|\[.*\]", text, re.DOTALL)
     if not match:
         raise ValueError(f"No JSON object found in model output:\n{text[:2000]}")
-    return json.loads(match.group(0))
+    # strict=False allows literal control characters (e.g. newlines) inside
+    # string values, which models frequently emit despite instructions.
+    return json.loads(match.group(0), strict=False)
 
 
 def run_agent(system_prompt: str, user_content: str, use_web_search: bool = False,
@@ -56,5 +58,21 @@ def run_agent(system_prompt: str, user_content: str, use_web_search: bool = Fals
                 })
 
     full_text = "\n".join(text_parts)
-    parsed = _extract_json(full_text)
+    try:
+        parsed = _extract_json(full_text)
+    except (ValueError, json.JSONDecodeError) as exc:
+        # One repair attempt: hand the broken output back and ask for valid JSON.
+        repair = _client.messages.create(
+            model=config.CLAUDE_MODEL,
+            max_tokens=max_tokens,
+            system="Return only a corrected, valid JSON object/array — no prose, no markdown fences.",
+            messages=[{
+                "role": "user",
+                "content": f"This was supposed to be valid JSON but failed to parse "
+                            f"({exc}). Fix it and return only the corrected JSON:\n\n{full_text}",
+            }],
+        )
+        repaired_text = "\n".join(b.text for b in repair.content if b.type == "text")
+        parsed = _extract_json(repaired_text)
+
     return {"parsed": parsed, "citations": citations, "raw_text": full_text}
