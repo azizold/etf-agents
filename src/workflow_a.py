@@ -21,6 +21,12 @@ from .agents import composition, portfolio_fit, risk, synthesis, theme_discovery
 
 MAX_VERIFICATION_RETRIES = 2
 
+# Bounds cost/runtime per discovery run and matches the policy's own review
+# cadence (Section 9: "typically 1/week, max 2-3" new-opportunity decks) —
+# there's no reason a single run should push more candidates through the
+# full Valuation->Verification chain than that in one pass.
+MAX_CANDIDATES_PER_RUN = 3
+
 
 def run_pipeline_for_candidate(theme_id: str, ticker: str, composition_eval: dict) -> dict | None:
     """Runs stages 3-7 (Valuation -> Verification, looping on failure) for one
@@ -102,7 +108,12 @@ def run_discovery(discovery_source: str) -> None:
     for s in discovered.get("screened_out", []):
         print(f"[discover] screened out: {s}")
 
+    processed = 0
     for candidate in discovered["candidates"]:
+        if processed >= MAX_CANDIDATES_PER_RUN:
+            print(f"[discover] hit MAX_CANDIDATES_PER_RUN ({MAX_CANDIDATES_PER_RUN}) — "
+                  f"remaining candidates stay logged as 'candidate' themes for a future run.")
+            break
         theme_id = candidate["theme_id"]
         tickers = candidate.get("candidate_tickers") or []
         print(f"[discover] theme '{candidate['theme_name']}' -> candidate tickers: {tickers}")
@@ -114,10 +125,13 @@ def run_discovery(discovery_source: str) -> None:
             print(f"[discover]   {ev['ticker']}: tier={ev.get('tier')} "
                   f"screen_result={ev.get('screen_result')} notes={ev.get('screen_notes')}")
         for ticker in comp_result.get("advance_to_valuation", []):
+            if processed >= MAX_CANDIDATES_PER_RUN:
+                break
             ev = next((e for e in comp_result["evaluations"] if e["ticker"] == ticker), None)
             if ev is None or ev.get("tier") == "excluded":
                 continue
             run_pipeline_for_candidate(theme_id, ticker, ev)
+            processed += 1
 
 
 _DECISION_RE = re.compile(r"^\s*(YES|NO|MORE INFO(?:\[(\w+)\])?)\s*:?\s*(.*)$", re.IGNORECASE | re.DOTALL)
