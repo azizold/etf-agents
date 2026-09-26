@@ -26,21 +26,28 @@ def run_pipeline_for_candidate(theme_id: str, ticker: str, composition_eval: dic
     """Runs stages 3-7 (Valuation -> Verification, looping on failure) for one
     ticker, then creates + posts the deck. Returns the created deck row, or
     None if the candidate was rejected/failed verification too many times."""
+    print(f"[pipeline] {ticker}: running valuation...")
     val = valuation.value(theme_id, ticker, composition_eval)
+    print(f"[pipeline] {ticker}: running risk screen...")
     risk_result = risk.screen(theme_id, ticker, composition_eval, val)
+    print(f"[pipeline] {ticker}: risk confidence = {risk_result.get('confidence')}")
 
     if risk_result.get("confidence") == "reject":
+        print(f"[pipeline] {ticker}: REJECTED by risk agent — {risk_result.get('confidence_reasoning')}")
         return None
 
     pf_result = portfolio_fit.check(theme_id, ticker, composition_eval, risk_result)
+    print(f"[pipeline] {ticker}: portfolio-fit sizing = {pf_result.get('recommended_position_size_pct_of_book')}%")
 
     for attempt in range(MAX_VERIFICATION_RETRIES + 1):
         verdict = verification.verify(theme_id, ticker, composition_eval, val, risk_result, pf_result)
+        print(f"[pipeline] {ticker}: verification attempt {attempt} passed = {verdict.get('passed')}")
         if verdict.get("passed"):
             break
         send_back = set(verdict.get("send_back_to", []))
         if attempt == MAX_VERIFICATION_RETRIES:
-            # Out of retries — do not let an unresolved issue reach a deck.
+            print(f"[pipeline] {ticker}: DROPPED — failed verification after {MAX_VERIFICATION_RETRIES} retries. "
+                  f"notes={verdict.get('notes')}")
             return None
         if "composition" in send_back:
             composition_eval = composition.evaluate(theme_id, [ticker])["evaluations"][0]
@@ -50,9 +57,11 @@ def run_pipeline_for_candidate(theme_id: str, ticker: str, composition_eval: dic
             risk_result = risk.screen(theme_id, ticker, composition_eval, val)
         pf_result = portfolio_fit.check(theme_id, ticker, composition_eval, risk_result)
 
+    print(f"[pipeline] {ticker}: assembling deck...")
     deck_content = synthesis.assemble_new_opportunity(
         theme_id, ticker, composition_eval, val, risk_result, pf_result
     )
+    print(f"[pipeline] {ticker}: DECK CREATED, confidence={deck_content.get('confidence')}")
 
     fund = db.get_fund_by_ticker(ticker)
     deck = db.create_deck(
@@ -88,12 +97,22 @@ def _response_instructions() -> str:
 
 def run_discovery(discovery_source: str) -> None:
     discovered = theme_discovery.discover(discovery_source)
+    print(f"[discover] {len(discovered['candidates'])} candidate theme(s), "
+          f"{len(discovered.get('screened_out', []))} screened out")
+    for s in discovered.get("screened_out", []):
+        print(f"[discover] screened out: {s}")
+
     for candidate in discovered["candidates"]:
         theme_id = candidate["theme_id"]
         tickers = candidate.get("candidate_tickers") or []
+        print(f"[discover] theme '{candidate['theme_name']}' -> candidate tickers: {tickers}")
         if not tickers:
             continue
         comp_result = composition.evaluate(theme_id, tickers)
+        print(f"[discover] composition advance_to_valuation: {comp_result.get('advance_to_valuation')}")
+        for ev in comp_result.get("evaluations", []):
+            print(f"[discover]   {ev['ticker']}: tier={ev.get('tier')} "
+                  f"screen_result={ev.get('screen_result')} notes={ev.get('screen_notes')}")
         for ticker in comp_result.get("advance_to_valuation", []):
             ev = next((e for e in comp_result["evaluations"] if e["ticker"] == ticker), None)
             if ev is None or ev.get("tier") == "excluded":

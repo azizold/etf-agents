@@ -58,6 +58,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/post_debug_issue.py "[Debug] workflow_a discover failed" /tmp/discover.log
 
+      - name: Post run summary (manual triggers only)
+        if: github.event_name == 'workflow_dispatch' && steps.discover.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/post_debug_issue.py "[Run summary] workflow_a discover (manual)" /tmp/discover.log
+
       - name: Fail job if discover failed
         if: steps.discover.outcome == 'failure'
         run: exit 1
