@@ -13,7 +13,7 @@ def evaluate(theme_id: str, candidate_tickers: list[str]) -> dict:
     }
     result = call_stage(
         workflow="A", agent_name="composition", doc_filename="02_composition.md",
-        input_data=input_data, use_web_search=True, theme_id=theme_id, max_tokens=8192,
+        input_data=input_data, use_web_search=True, theme_id=theme_id, max_tokens=16000,
     )
     parsed = result["parsed"]
 

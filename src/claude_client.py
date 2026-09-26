@@ -63,19 +63,27 @@ def run_agent(system_prompt: str, user_content: str, use_web_search: bool = Fals
     full_text = "\n".join(text_parts)
     try:
         parsed = _extract_json(full_text)
+        if not parsed:  # valid JSON but empty ({} or []) — e.g. truncated by max_tokens
+            raise ValueError("Parsed JSON was empty — likely truncated output")
     except (ValueError, json.JSONDecodeError) as exc:
-        # One repair attempt: hand the broken output back and ask for valid JSON.
-        repair = _client.messages.create(
-            model=config.CLAUDE_MODEL,
-            max_tokens=max_tokens,
-            system="Return only a corrected, valid JSON object/array — no prose, no markdown fences.",
-            messages=[{
-                "role": "user",
-                "content": f"This was supposed to be valid JSON but failed to parse "
-                            f"({exc}). Fix it and return only the corrected JSON:\n\n{full_text}",
-            }],
-        )
-        repaired_text = "\n".join(b.text for b in repair.content if b.type == "text")
-        parsed = _extract_json(repaired_text)
+        # One repair attempt: re-run the *original* request with more headroom
+        # rather than asking the model to "fix" already-truncated output —
+        # there's nothing to fix if the real content never got generated.
+        retry_kwargs = dict(kwargs)
+        retry_kwargs["max_tokens"] = max_tokens * 2
+        retry = _client.messages.create(**retry_kwargs)
+        retry_text = "\n".join(b.text for b in retry.content if b.type == "text")
+        parsed = _extract_json(retry_text)
+        if not parsed:
+            raise ValueError(f"Still empty after retry with {max_tokens * 2} max_tokens "
+                              f"(original error: {exc})")
+        full_text = retry_text
+        for block in retry.content:
+            if block.type == "text":
+                for c in getattr(block, "citations", None) or []:
+                    citations.append({
+                        "url": getattr(c, "url", None), "title": getattr(c, "title", None),
+                        "cited_text": getattr(c, "cited_text", None),
+                    })
 
     return {"parsed": parsed, "citations": citations, "raw_text": full_text}

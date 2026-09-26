@@ -11,7 +11,7 @@ def discover(discovery_source: str) -> dict:
     }
     result = call_stage(
         workflow="A", agent_name="theme_discovery", doc_filename="01_theme_discovery.md",
-        input_data=input_data, use_web_search=True, max_tokens=8192,
+        input_data=input_data, use_web_search=True, max_tokens=16000,
     )
     parsed = result["parsed"]
     saved = []

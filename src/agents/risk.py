@@ -14,7 +14,7 @@ def screen(theme_id: str, ticker: str, composition_eval: dict, valuation: dict) 
     }
     result = call_stage(
         workflow="A", agent_name="risk_counter_case", doc_filename="04_risk_counter_case.md",
-        input_data=input_data, use_web_search=True, theme_id=theme_id, max_tokens=4096,
+        input_data=input_data, use_web_search=True, theme_id=theme_id, max_tokens=8192,
     )
     return result["parsed"]
 
@@ -31,6 +31,6 @@ def monitor(position: dict) -> dict:
     result = call_stage(
         workflow="B", agent_name="risk_counter_case_monitoring",
         doc_filename="04b_risk_monitoring.md", input_data=input_data,
-        use_web_search=True, position_id=position["id"], max_tokens=4096,
+        use_web_search=True, position_id=position["id"], max_tokens=8192,
     )
     return result["parsed"]

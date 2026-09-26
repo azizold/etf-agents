@@ -14,6 +14,6 @@ def value(theme_id: str, ticker: str, composition_eval: dict) -> dict:
     }
     result = call_stage(
         workflow="A", agent_name="valuation", doc_filename="03_valuation.md",
-        input_data=input_data, use_web_search=True, theme_id=theme_id, max_tokens=8192,
+        input_data=input_data, use_web_search=True, theme_id=theme_id, max_tokens=16000,
     )
     return result["parsed"]
