@@ -1,0 +1,17 @@
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node (if used for any tooling)
+node_modules/
+
+# OS/editor cruft
+.DS_Store
