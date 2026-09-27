@@ -14,7 +14,11 @@ def assemble_new_opportunity(theme_id: str, ticker: str, composition_eval: dict,
     }
     result = call_stage(
         workflow="A", agent_name="synthesis", doc_filename="07_synthesis.md",
-        input_data=input_data, use_web_search=False, theme_id=theme_id, max_tokens=8192,
+        # field_9_target_price now renders a full per-holding, per-scenario
+        # markdown table plus four labeled disclosure paragraphs (the deeper
+        # valuation format) — 8192 risks the same starvation seen in
+        # verification.py; match the research-stage ceiling.
+        input_data=input_data, use_web_search=False, theme_id=theme_id, max_tokens=16000,
     )
     return result["parsed"]
 

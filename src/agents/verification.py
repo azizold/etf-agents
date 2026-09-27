@@ -12,7 +12,12 @@ def verify(theme_id: str, ticker: str, composition_eval: dict, valuation: dict,
     }
     result = call_stage(
         workflow="A", agent_name="verification", doc_filename="06_verification.md",
-        input_data=input_data, use_web_search=False, theme_id=theme_id, max_tokens=4096,
+        # 06_verification.md's math check now re-derives every holding's
+        # bear/base/bull arithmetic step by step (per the deeper valuation
+        # format) before it can even start writing the JSON verdict — 4096
+        # was observed to starve this into emitting zero output. 16000 gives
+        # it the same room as the upstream research stages.
+        input_data=input_data, use_web_search=False, theme_id=theme_id, max_tokens=16000,
     )
     return result["parsed"]
 
