@@ -20,9 +20,12 @@ used to write and push the code — it isn't part of the running system.
 ## The two workflows
 
 - `.github/workflows/workflow_a.yml` — Theme Discovery through Logging
-  (policy Section 7, Workflow A), on the pre-market / post-close / weekend
-  cadence, plus a frequent no-LLM housekeeping pass (reading your Issue
-  comments, applying the no-response default).
+  (policy Section 7, Workflow A), pre-market on Mon/Wed/Fri (matching the
+  policy's own ~1-3-new-decks-a-week cadence — Theme Discovery also
+  remembers what it screened out in roughly the last two weeks and skips
+  re-researching it from scratch, see `SCREENED_OUT_COOLDOWN_DAYS` in
+  `src/agents/theme_discovery.py`), plus a frequent no-LLM housekeeping pass
+  (reading your Issue comments, applying the no-response default).
 - `.github/workflows/workflow_b.yml` — the standing-position monitoring
   pass (policy Section 7, Workflow B), monthly by default plus a
   `workflow_dispatch` you can fire manually for an "event-triggered" re-score,

@@ -54,6 +54,31 @@ def update_theme_status(theme_id, status):
         cur.execute("update themes set status = %s where id = %s", (status, theme_id))
 
 
+def insert_screened_out_theme(name, reason, discovery_source):
+    """Records a theme Theme Discovery rejected this run, so a future run can
+    be told about it and skip re-researching the same ground from scratch."""
+    with get_conn() as conn, _dict_cursor(conn) as cur:
+        cur.execute(
+            """insert into themes (name, description, status, screened_out_reason, discovery_source)
+               values (%s,%s,'screened_out',%s,%s) returning *""",
+            (name, reason, reason, discovery_source),
+        )
+        return cur.fetchone()
+
+
+def get_recent_screened_out_themes(days=14):
+    """One row per distinct theme name (most recent rejection), so a theme
+    screened out on several runs in the cooldown window isn't repeated."""
+    with get_conn() as conn, _dict_cursor(conn) as cur:
+        cur.execute(
+            """select distinct on (name) name, screened_out_reason, discovered_at from themes
+               where status = 'screened_out' and discovered_at > now() - (%s || ' days')::interval
+               order by name, discovered_at desc""",
+            (days,),
+        )
+        return cur.fetchall()
+
+
 # ── Funds ────────────────────────────────────────────────────────────────
 
 def upsert_fund(ticker, **fields):

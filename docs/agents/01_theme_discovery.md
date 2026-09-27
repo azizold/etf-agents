@@ -22,8 +22,15 @@ whitelist.
 - Current open positions and their themes (avoid re-proposing an
   already-active theme unless something materially new justifies a second
   look).
-- Recently screened-out or expired themes (do not re-propose within the same
-  run unless the note says a fresh trigger occurred).
+- `recently_screened_out_themes` — themes rejected in roughly the last two
+  weeks, with the reason and when. **Do not spend a fresh web search
+  re-researching one of these from scratch.** If nothing in your own
+  knowledge or a quick check suggests the situation has changed, skip it
+  silently (it doesn't need to appear in this run's `screened_out` list
+  again — that would just be re-stating the same rejection). Only spend
+  research budget re-examining one of these if you have a specific reason to
+  think the "why now" answer may have changed (e.g. the reason was time-
+  bound, like an upcoming vote or earnings date that has since passed).
 
 ## What you must do
 

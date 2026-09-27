@@ -17,6 +17,14 @@ create table if not exists themes (
     discovery_source text            -- which Workflow A run/schedule slot found it
 );
 
+-- Screened-out themes are recorded too (status='screened_out', reason in both
+-- `description` and here) so Theme Discovery can be told what it already
+-- rejected recently and skip re-researching it from scratch every run —
+-- without this, an already-priced-in theme (nuclear, grid, quantum, ...) gets
+-- fully re-researched with fresh web searches on every discovery run even
+-- though the answer hasn't changed since the last one, hours or days ago.
+alter table themes add column if not exists screened_out_reason text;
+
 create table if not exists funds (
     id                  uuid primary key default gen_random_uuid(),
     ticker              text not null unique,
