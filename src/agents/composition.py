@@ -18,11 +18,18 @@ def evaluate(theme_id: str, candidate_tickers: list[str]) -> dict:
     parsed = result["parsed"]
 
     for ev in parsed.get("evaluations", []):
+        # For a hard-screened-out candidate (e.g. a single-company ticker
+        # that isn't an ETF at all), the model sometimes fills fields it
+        # couldn't find with "" rather than omitting them or using null —
+        # that breaks the date/numeric columns in `funds` (Postgres rejects
+        # "" for a `date` column outright). Treat "" as "not provided" for
+        # any field that isn't a plain string column.
         db.upsert_fund(
             ticker=ev["ticker"], name=ev["ticker"], theme_id=theme_id,
             asset_class=ev.get("asset_class"), tier=ev.get("tier"),
-            aum_usd=ev.get("aum_usd"), inception_date=ev.get("inception_date"),
-            expense_ratio=ev.get("expense_ratio"),
+            aum_usd=_blank_to_none(ev.get("aum_usd")),
+            inception_date=_blank_to_none(ev.get("inception_date")),
+            expense_ratio=_blank_to_none(ev.get("expense_ratio")),
             is_leveraged_inverse=ev.get("is_leveraged_inverse", False),
             is_fx_exposed=ev.get("is_fx_exposed", False), fx_note=ev.get("fx_note"),
             last_screened_at=dt.datetime.now(dt.timezone.utc),
@@ -30,3 +37,10 @@ def evaluate(theme_id: str, candidate_tickers: list[str]) -> dict:
             selected_over=json.dumps(ev.get("selected_over", [])),
         )
     return parsed
+
+
+def _blank_to_none(value):
+    """Postgres rejects "" for date/numeric columns; the model occasionally
+    emits "" instead of null for a field it couldn't find (typically on a
+    hard-screened-out, not-actually-an-ETF candidate)."""
+    return None if value == "" else value
