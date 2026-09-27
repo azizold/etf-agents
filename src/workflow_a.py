@@ -119,7 +119,11 @@ def run_discovery(discovery_source: str) -> None:
         print(f"[discover] theme '{candidate['theme_name']}' -> candidate tickers: {tickers}")
         if not tickers:
             continue
-        comp_result = composition.evaluate(theme_id, tickers)
+        try:
+            comp_result = composition.evaluate(theme_id, tickers)
+        except Exception as exc:
+            print(f"[discover] theme '{candidate['theme_name']}': composition FAILED, skipping — {exc!r}")
+            continue
         print(f"[discover] composition advance_to_valuation: {comp_result.get('advance_to_valuation')}")
         for ev in comp_result.get("evaluations", []):
             print(f"[discover]   {ev['ticker']}: tier={ev.get('tier')} "
@@ -130,7 +134,14 @@ def run_discovery(discovery_source: str) -> None:
             ev = next((e for e in comp_result["evaluations"] if e["ticker"] == ticker), None)
             if ev is None or ev.get("tier") == "excluded":
                 continue
-            run_pipeline_for_candidate(theme_id, ticker, ev)
+            try:
+                run_pipeline_for_candidate(theme_id, ticker, ev)
+            except Exception as exc:
+                # One bad ticker (a transient empty model response, a stage
+                # error) must not take down the whole run — the other
+                # candidates in this batch already cost real API calls to
+                # research and deserve their own shot at a deck.
+                print(f"[pipeline] {ticker}: FAILED with unhandled error, skipping — {exc!r}")
             processed += 1
 
 

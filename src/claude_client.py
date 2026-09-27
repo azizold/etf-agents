@@ -32,24 +32,10 @@ def _extract_json(text: str) -> dict:
     return json.loads(match.group(0), strict=False)
 
 
-def run_agent(system_prompt: str, user_content: str, use_web_search: bool = False,
-              max_tokens: int = 4096) -> dict:
-    """Sends one agent-stage request and returns parsed JSON plus any web
-    citations Claude used, so callers can pass those citations straight into
-    `sources` records (Section 1 / Verification Agent)."""
-    kwargs = dict(
-        model=config.CLAUDE_MODEL,
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_content}],
-    )
-    if use_web_search:
-        kwargs["tools"] = [WEB_SEARCH_TOOL]
-
+def _call_once(kwargs: dict) -> tuple[dict, list, str]:
+    """One API call -> (parsed JSON, citations, raw text). Raises on empty/unparsable output."""
     response = _client.messages.create(**kwargs)
-
-    text_parts = []
-    citations = []
+    text_parts, citations = [], []
     for block in response.content:
         if block.type == "text":
             text_parts.append(block.text)
@@ -59,31 +45,45 @@ def run_agent(system_prompt: str, user_content: str, use_web_search: bool = Fals
                     "title": getattr(c, "title", None),
                     "cited_text": getattr(c, "cited_text", None),
                 })
-
     full_text = "\n".join(text_parts)
-    try:
-        parsed = _extract_json(full_text)
-        if not parsed:  # valid JSON but empty ({} or []) — e.g. truncated by max_tokens
-            raise ValueError("Parsed JSON was empty — likely truncated output")
-    except (ValueError, json.JSONDecodeError) as exc:
-        # One repair attempt: re-run the *original* request with more headroom
-        # rather than asking the model to "fix" already-truncated output —
-        # there's nothing to fix if the real content never got generated.
-        retry_kwargs = dict(kwargs)
-        retry_kwargs["max_tokens"] = max_tokens * 2
-        retry = _client.messages.create(**retry_kwargs)
-        retry_text = "\n".join(b.text for b in retry.content if b.type == "text")
-        parsed = _extract_json(retry_text)
-        if not parsed:
-            raise ValueError(f"Still empty after retry with {max_tokens * 2} max_tokens "
-                              f"(original error: {exc})")
-        full_text = retry_text
-        for block in retry.content:
-            if block.type == "text":
-                for c in getattr(block, "citations", None) or []:
-                    citations.append({
-                        "url": getattr(c, "url", None), "title": getattr(c, "title", None),
-                        "cited_text": getattr(c, "cited_text", None),
-                    })
+    parsed = _extract_json(full_text)
+    if not parsed:  # valid JSON but empty ({} or []) — e.g. truncated, or a degenerate response
+        raise ValueError("Parsed JSON was empty")
+    return parsed, citations, full_text
 
-    return {"parsed": parsed, "citations": citations, "raw_text": full_text}
+
+def run_agent(system_prompt: str, user_content: str, use_web_search: bool = False,
+              max_tokens: int = 4096) -> dict:
+    """Sends one agent-stage request and returns parsed JSON plus any web
+    citations Claude used, so callers can pass those citations straight into
+    `sources` records (Section 1 / Verification Agent).
+
+    Retries up to twice on empty/unparsable output: once with doubled
+    max_tokens (covers truncation), once more at the same size (covers a
+    genuinely empty/degenerate response, where more tokens wouldn't help —
+    just a fresh sample). Each retry is its own real API call, so this is a
+    deliberate cost/reliability tradeoff, not free — kept to 2 extra
+    attempts, not an open-ended loop.
+    """
+    base_kwargs = dict(
+        model=config.CLAUDE_MODEL,
+        max_tokens=max_tokens,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_content}],
+    )
+    if use_web_search:
+        base_kwargs["tools"] = [WEB_SEARCH_TOOL]
+
+    attempts = [
+        {**base_kwargs},
+        {**base_kwargs, "max_tokens": max_tokens * 2},
+        {**base_kwargs},
+    ]
+    last_exc = None
+    for i, kwargs in enumerate(attempts):
+        try:
+            parsed, citations, full_text = _call_once(kwargs)
+            return {"parsed": parsed, "citations": citations, "raw_text": full_text}
+        except (ValueError, json.JSONDecodeError) as exc:
+            last_exc = exc
+    raise ValueError(f"Empty/unparsable output after {len(attempts)} attempts: {last_exc}")
