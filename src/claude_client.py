@@ -17,7 +17,7 @@ from . import config
 # A generous but bounded per-call timeout — a web-search-enabled call can
 # legitimately take a while, but should never hang indefinitely. The job-level
 # timeout-minutes in the workflow YAML is the outer safety net on top of this.
-_client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=180.0)
+_client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=300.0)
 
 WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 8}
 
