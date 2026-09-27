@@ -26,7 +26,10 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # Verification/Synthesis now need up to 16000 output tokens each (deeper
+    # valuation re-derivation/rendering) — 35 min was observed too tight and
+    # the job was killed mid-run with no debug issue posted (see fix below).
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -53,11 +56,14 @@ jobs:
           python -m src.workflow_a discover --source "${{ github.event.schedule || 'manual' }}" \
             2>&1 | tee /tmp/discover.log
 
-      - name: Post debug issue if discover failed
-        if: steps.discover.outcome == 'failure'
+      - name: Post debug issue if discover failed or timed out
+        # A job-level timeout cancels the step (outcome 'cancelled'), not
+        # 'failure' — without this, a timeout previously left us with zero
+        # visibility since the log never got posted anywhere readable.
+        if: always() && (steps.discover.outcome == 'failure' || steps.discover.outcome == 'cancelled')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/post_debug_issue.py "[Debug] workflow_a discover failed" /tmp/discover.log
+        run: python scripts/post_debug_issue.py "[Debug] workflow_a discover failed or timed out" /tmp/discover.log
 
       - name: Post run summary (manual triggers only)
         if: github.event_name == 'workflow_dispatch' && steps.discover.outcome == 'success'
@@ -91,11 +97,11 @@ jobs:
             python -m src.workflow_a expire
           } 2>&1 | tee /tmp/process.log
 
-      - name: Post debug issue if process failed
-        if: steps.process.outcome == 'failure'
+      - name: Post debug issue if process failed or timed out
+        if: always() && (steps.process.outcome == 'failure' || steps.process.outcome == 'cancelled')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/post_debug_issue.py "[Debug] workflow_a process failed" /tmp/process.log
+        run: python scripts/post_debug_issue.py "[Debug] workflow_a process failed or timed out" /tmp/process.log
 
       - name: Fail job if process failed
         if: steps.process.outcome == 'failure'

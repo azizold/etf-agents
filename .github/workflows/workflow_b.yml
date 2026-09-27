@@ -23,7 +23,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,11 +44,11 @@ jobs:
           set -o pipefail
           python -m src.workflow_b monitor 2>&1 | tee /tmp/monitor.log
 
-      - name: Post debug issue if monitor failed
-        if: steps.monitor.outcome == 'failure'
+      - name: Post debug issue if monitor failed or timed out
+        if: always() && (steps.monitor.outcome == 'failure' || steps.monitor.outcome == 'cancelled')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/post_debug_issue.py "[Debug] workflow_b monitor failed" /tmp/monitor.log
+        run: python scripts/post_debug_issue.py "[Debug] workflow_b monitor failed or timed out" /tmp/monitor.log
 
       - name: Post run summary (manual triggers only)
         if: github.event_name == 'workflow_dispatch' && steps.monitor.outcome == 'success'
@@ -73,11 +73,11 @@ jobs:
           set -o pipefail
           python -m src.workflow_b responses 2>&1 | tee /tmp/responses.log
 
-      - name: Post debug issue if responses failed
-        if: steps.responses.outcome == 'failure'
+      - name: Post debug issue if responses failed or timed out
+        if: always() && (steps.responses.outcome == 'failure' || steps.responses.outcome == 'cancelled')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/post_debug_issue.py "[Debug] workflow_b responses failed" /tmp/responses.log
+        run: python scripts/post_debug_issue.py "[Debug] workflow_b responses failed or timed out" /tmp/responses.log
 
       - name: Fail job if responses failed
         if: steps.responses.outcome == 'failure'
