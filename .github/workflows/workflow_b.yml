@@ -23,6 +23,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,19 +32,53 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Run monitoring pass
+        id: monitor
         if: github.event.schedule == '0 13 1 * *' || github.event.inputs.mode == 'monitor'
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python -m src.workflow_b monitor
+        run: |
+          set -o pipefail
+          python -m src.workflow_b monitor 2>&1 | tee /tmp/monitor.log
+
+      - name: Post debug issue if monitor failed
+        if: steps.monitor.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/post_debug_issue.py "[Debug] workflow_b monitor failed" /tmp/monitor.log
+
+      - name: Post run summary (manual triggers only)
+        if: github.event_name == 'workflow_dispatch' && steps.monitor.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/post_debug_issue.py "[Run summary] workflow_b monitor (manual)" /tmp/monitor.log
+
+      - name: Fail job if monitor failed
+        if: steps.monitor.outcome == 'failure'
+        run: exit 1
 
       - name: Process monitoring deck responses
+        id: responses
         if: github.event.schedule == '0 */4 * * *' || github.event.inputs.mode == 'responses'
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python -m src.workflow_b responses
+        run: |
+          set -o pipefail
+          python -m src.workflow_b responses 2>&1 | tee /tmp/responses.log
+
+      - name: Post debug issue if responses failed
+        if: steps.responses.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/post_debug_issue.py "[Debug] workflow_b responses failed" /tmp/responses.log
+
+      - name: Fail job if responses failed
+        if: steps.responses.outcome == 'failure'
+        run: exit 1

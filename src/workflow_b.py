@@ -14,48 +14,68 @@ from .agents import portfolio_fit, risk, synthesis, verification
 
 def run_monitoring() -> None:
     open_positions = db.get_open_positions()
+    print(f"[monitor] {len(open_positions)} open position(s) to re-score")
 
     for position in open_positions:
-        result = risk.monitor(position)
-        verdict = verification.verify_monitoring(position, result)
-        if not verdict.get("passed"):
-            # Do not act on an unverified re-score; log and move on. A human
-            # can inspect agent_runs for the specific failure.
-            continue
+        try:
+            _monitor_one_position(position)
+        except Exception as exc:
+            # One position's failure (a flaky/empty model response, a stage
+            # error) must not take down the whole monitoring run — the other
+            # open positions still deserve their monthly re-score, and
+            # check_cleared_exits() below must still run.
+            print(f"[monitor] {position['ticker']}: FAILED with unhandled error, skipping — {exc!r}")
 
-        state_changed = result["thesis_state"] != position["thesis_state"]
-        db.update_thesis_state(position["id"], result["thesis_state"], notes=result.get("what_changed"))
+    try:
+        check_cleared_exits(open_positions)
+    except Exception as exc:
+        print(f"[monitor] check_cleared_exits FAILED, skipping — {exc!r}")
 
-        urgent = result.get("structural_risk_flag") or result["thesis_state"] == "broken"
-        if not (state_changed or urgent):
-            continue  # nothing deck-worthy this run
 
-        eligible_exit_at = db.get_position_eligible_exit_at(position["id"])
-        lockup_status = {
-            "eligible_exit_at": str(eligible_exit_at) if eligible_exit_at else None,
-            "cleared": bool(eligible_exit_at) and eligible_exit_at <= __import__("datetime").datetime.now(
-                __import__("datetime").timezone.utc
-            ),
-        }
+def _monitor_one_position(position: dict) -> None:
+    print(f"[monitor] {position['ticker']}: running risk re-score...")
+    result = risk.monitor(position)
+    verdict = verification.verify_monitoring(position, result)
+    print(f"[monitor] {position['ticker']}: verification passed = {verdict.get('passed')}")
+    if not verdict.get("passed"):
+        # Do not act on an unverified re-score; log and move on. A human
+        # can inspect agent_runs for the specific failure.
+        return
 
-        deck_content = synthesis.assemble_monitoring(position, result, lockup_status)
-        deck = db.create_deck(
-            deck_type="monitoring", content=deck_content, fund_id=position["fund_id"],
-            position_id=position["id"], confidence=deck_content.get("confidence"),
-            recommended_action=result.get("recommended_action"), urgent=urgent,
-        )
+    state_changed = result["thesis_state"] != position["thesis_state"]
+    db.update_thesis_state(position["id"], result["thesis_state"], notes=result.get("what_changed"))
 
-        title_prefix = "[URGENT]" if urgent else "[Monitoring]"
-        issue = github_issues.create_deck_issue(
-            title=f"{title_prefix} {position['ticker']}: thesis {result['thesis_state']}",
-            body=deck_content.get("markdown", "(no markdown rendered)") + "\n\n---\n"
-                 + "**To respond:** comment `CONFIRM`, `OVERRIDE: <what to do instead>`, "
-                   "or `MORE INFO: <question>`.",
-            labels=["monitoring-deck"] + (["urgent"] if urgent else []),
-        )
-        db.set_deck_github_issue(deck["id"], issue["number"], issue["url"])
+    urgent = result.get("structural_risk_flag") or result["thesis_state"] == "broken"
+    if not (state_changed or urgent):
+        print(f"[monitor] {position['ticker']}: no deck-worthy change this run "
+              f"(thesis_state={result['thesis_state']})")
+        return  # nothing deck-worthy this run
 
-    check_cleared_exits(open_positions)
+    eligible_exit_at = db.get_position_eligible_exit_at(position["id"])
+    lockup_status = {
+        "eligible_exit_at": str(eligible_exit_at) if eligible_exit_at else None,
+        "cleared": bool(eligible_exit_at) and eligible_exit_at <= __import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc
+        ),
+    }
+
+    deck_content = synthesis.assemble_monitoring(position, result, lockup_status)
+    deck = db.create_deck(
+        deck_type="monitoring", content=deck_content, fund_id=position["fund_id"],
+        position_id=position["id"], confidence=deck_content.get("confidence"),
+        recommended_action=result.get("recommended_action"), urgent=urgent,
+    )
+
+    title_prefix = "[URGENT]" if urgent else "[Monitoring]"
+    issue = github_issues.create_deck_issue(
+        title=f"{title_prefix} {position['ticker']}: thesis {result['thesis_state']}",
+        body=deck_content.get("markdown", "(no markdown rendered)") + "\n\n---\n"
+             + "**To respond:** comment `CONFIRM`, `OVERRIDE: <what to do instead>`, "
+               "or `MORE INFO: <question>`.",
+        labels=["monitoring-deck"] + (["urgent"] if urgent else []),
+    )
+    db.set_deck_github_issue(deck["id"], issue["number"], issue["url"])
+    print(f"[monitor] {position['ticker']}: DECK CREATED (urgent={urgent})")
 
 
 def check_cleared_exits(open_positions: list[dict]) -> None:
