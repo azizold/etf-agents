@@ -35,6 +35,15 @@ def _extract_json(text: str) -> dict:
 def _call_once(kwargs: dict) -> tuple[dict, list, str]:
     """One API call -> (parsed JSON, citations, raw text). Raises on empty/unparsable output."""
     response = _client.messages.create(**kwargs)
+    # Log cache behavior so hit rate is visible in the Actions logs:
+    # cache_read > 0 means the system prompt was served from cache (~90% cheaper).
+    usage = response.usage
+    print(
+        f"[usage] in={usage.input_tokens} "
+        f"cache_write={getattr(usage, 'cache_creation_input_tokens', 0) or 0} "
+        f"cache_read={getattr(usage, 'cache_read_input_tokens', 0) or 0} "
+        f"out={usage.output_tokens}"
+    )
     text_parts, citations = [], []
     for block in response.content:
         if block.type == "text":
@@ -68,7 +77,13 @@ def run_agent(system_prompt: str, user_content: str, use_web_search: bool = Fals
     base_kwargs = dict(
         model=config.CLAUDE_MODEL,
         max_tokens=max_tokens,
-        system=system_prompt,
+        # The stage doc is identical on every call to that stage (per ticker, per
+        # verification retry, per empty-output retry), so mark it cacheable. The
+        # cache prefix covers tools + system, so the web search tool definition
+        # is cached along with it. Prompts under the model's minimum cacheable
+        # length (~1,024 tokens on Sonnet) are simply not cached — no error.
+        system=[{"type": "text", "text": system_prompt,
+                 "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_content}],
     )
     if use_web_search:
